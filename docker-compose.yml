@@ -1,0 +1,15 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: baas-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: baas_vba
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
