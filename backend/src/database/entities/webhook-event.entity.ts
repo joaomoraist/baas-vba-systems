@@ -27,7 +27,7 @@ export class WebhookEvent {
   @Column({
     type: 'json',
   })
-  payload: object;
+  payload: Record<string, unknown>;
 
   @Column({
     type: 'enum',

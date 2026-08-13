@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DatabaseModule } from './database/database.module';
+import { GatewayModule } from './gateway/gateway.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { DatabaseModule } from './database/database.module';
     }),
 
     DatabaseModule,
+    GatewayModule,
 
   ],
 
