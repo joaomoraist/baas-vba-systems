@@ -84,4 +84,44 @@ export class CreateCheckoutLinkDto {
   @IsInt()
   @IsPositive()
   installments?: number;
+
+  @ApiPropertyOptional({
+  example: '4111111111111111',
+  description: 'Número do cartão. Obrigatório quando o método for CARD.',
+})
+@IsOptional()
+@IsString()
+cardNumber?: string;
+
+@ApiPropertyOptional({
+  example: 'MARIA SILVA',
+  description: 'Nome no cartão. Obrigatório quando o método for CARD.',
+})
+@IsOptional()
+@IsString()
+cardHolder?: string;
+
+@ApiPropertyOptional({
+  example: '12',
+  description: 'Mês de validade. Obrigatório quando o método for CARD.',
+})
+@IsOptional()
+@IsString()
+expiryMonth?: string;
+
+@ApiPropertyOptional({
+  example: '2030',
+  description: 'Ano de validade. Obrigatório quando o método for CARD.',
+})
+@IsOptional()
+@IsString()
+expiryYear?: string;
+
+@ApiPropertyOptional({
+  example: '123',
+  description: 'CVV. Obrigatório quando o método for CARD.',
+})
+@IsOptional()
+@IsString()
+cvv?: string;
 }

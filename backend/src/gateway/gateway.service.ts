@@ -20,6 +20,7 @@ import { GatewayAccount } from '../database/entities/gateway-account.entity';
 import { User } from '../database/entities/user.entity';
 
 import { CreatePixPaymentDto } from './dto/create-pix-payment.dto';
+import { CreateCardPaymentDto } from './dto/create-card-payment.dto';
 
 @Injectable()
 export class GatewayService {
@@ -186,6 +187,27 @@ export class GatewayService {
       this.handleHttpError(error);
     }
   }
+
+  async createCardPayment(
+  gatewayAccount: GatewayAccount,
+  dto: CreateCardPaymentDto,
+) {
+  try {
+    const response = await firstValueFrom(
+      this.httpService.post(
+        `${this.baseUrl}/payments/card`,
+        dto,
+        {
+          headers: this.getAuthHeaders(gatewayAccount),
+        },
+      ),
+    );
+
+    return response.data;
+  } catch (error) {
+    this.handleHttpError(error);
+  }
+}
 
   async getGatewayAccount(gatewayAccountId: string) {
     const gatewayAccount =

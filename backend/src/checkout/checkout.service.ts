@@ -70,6 +70,22 @@ export class CheckoutService {
 
 
     if (dto.method === CheckoutLinkStatus.CARD) {
+      if (
+        !dto.brand ||
+        !dto.installments ||
+        !dto.cardNumber ||
+        !dto.cardHolder ||
+        !dto.expiryMonth ||
+        !dto.expiryYear ||
+        !dto.cvv ||
+        !dto.description ||
+        !dto.payerDocument
+      ) {
+        throw new BadRequestException(
+          'Descrição, documento, bandeira, parcelas e dados do cartão são obrigatórios.',
+        );
+      }
+
       const fees =
         await this.gatewayService.getFees(
           gatewayAccount,
@@ -81,6 +97,25 @@ export class CheckoutService {
         dto.brand,
         dto.installments,
       );
+
+      gatewayPayment =
+        await this.gatewayService.createCardPayment(
+          gatewayAccount,
+          {
+            amount: dto.amount,
+            description: dto.description,
+            externalReference: dto.externalReference,
+
+            cardNumber: dto.cardNumber,
+            cardHolder: dto.cardHolder,
+            expiryMonth: dto.expiryMonth,
+            expiryYear: dto.expiryYear,
+            cvv: dto.cvv,
+
+            installments: dto.installments,
+            feePercent,
+          },
+        );
     }
 
     // Link válido por 30 minutos
@@ -90,9 +125,7 @@ export class CheckoutService {
       expiresAt.getMinutes() + 30,
     );
 
-    // =========================
-    // Criação do checkout
-    // =========================
+
     const checkoutLink =
       this.checkoutLinkRepository.create({
         gatewayAccountId: gatewayAccount.id,
@@ -135,9 +168,7 @@ export class CheckoutService {
         checkoutLink,
       );
 
-    // =========================
-    // Resposta
-    // =========================
+
     return {
       id: savedCheckoutLink.id,
 
