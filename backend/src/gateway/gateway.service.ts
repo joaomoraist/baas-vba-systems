@@ -19,101 +19,108 @@ import { GatewayRegisterDto } from './dto/gateway-register.dto';
 import { GatewayAccount } from '../database/entities/gateway-account.entity';
 import { User } from '../database/entities/user.entity';
 
+import { CreatePixPaymentDto } from './dto/create-pix-payment.dto';
+
 @Injectable()
 export class GatewayService {
   private readonly baseUrl: string;
-  private token: string | null = null;
 
   constructor(
-  private readonly httpService: HttpService,
-  private readonly configService: ConfigService,
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
 
-  @InjectRepository(GatewayAccount)
-  private readonly gatewayAccountRepository: Repository<GatewayAccount>,
+    @InjectRepository(GatewayAccount)
+    private readonly gatewayAccountRepository: Repository<GatewayAccount>,
 
-  @InjectRepository(User)
-  private readonly userRepository: Repository<User>,
-) {
-  this.baseUrl =
-    this.configService.getOrThrow<string>('GATEWAY_BASE_URL');
-}
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {
+    this.baseUrl =
+      this.configService.getOrThrow<string>('GATEWAY_BASE_URL');
+  }
 
   // Login no Gateway
   async login(loginDto: GatewayLoginDto) {
-  try {
-    // 1. Procurar o usuário local do BaaS
-    const user = await this.userRepository.findOne({
-      where: {
-        document: loginDto.document,
-      },
-    });
-
-    if (!user) {
-      throw new HttpException(
-        'Usuário BaaS não encontrado.',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    // 2. Fazer login no Gateway
-    const response = await firstValueFrom(
-      this.httpService.post(
-        `${this.baseUrl}/auth/login`,
-        loginDto,
-      ),
-    );
-
-    const accessToken =
-      response.data?.access_token ||
-      response.data?.token;
-
-    const codigoCliente = response.data?.codigoCliente;
-    const chaveLoja = response.data?.chaveLoja;
-
-    if (!accessToken || !codigoCliente || !chaveLoja) {
-      throw new HttpException(
-        'Resposta de login do Gateway inválida.',
-        HttpStatus.BAD_GATEWAY,
-      );
-    }
-
-    // 3. Mantém o token disponível para as chamadas atuais
-    this.token = accessToken;
-
-    // 4. Verifica se o usuário já possui uma conta Gateway
-    let gatewayAccount =
-      await this.gatewayAccountRepository.findOne({
+    try {
+      const user = await this.userRepository.findOne({
         where: {
-          userId: user.id,
+          document: loginDto.document,
         },
       });
 
-    // 5. Se não existir, cria
-    if (!gatewayAccount) {
-      gatewayAccount =
-        this.gatewayAccountRepository.create({
-          userId: user.id,
-          codigoCliente: String(codigoCliente),
-          chaveLoja: chaveLoja,
-          accessToken: accessToken,
+      if (!user) {
+        throw new HttpException(
+          'Usuário BaaS não encontrado.',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.baseUrl}/auth/login`,
+          loginDto,
+        ),
+      );
+
+      const accessToken =
+        response.data?.access_token ||
+        response.data?.token;
+
+      const codigoCliente = response.data?.codigoCliente;
+      const chaveLoja = response.data?.chaveLoja;
+
+      if (!accessToken || !codigoCliente || !chaveLoja) {
+        throw new HttpException(
+          'Resposta de login do Gateway inválida.',
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
+
+
+      let gatewayAccount =
+        await this.gatewayAccountRepository.findOne({
+          where: {
+            userId: user.id,
+          },
         });
-    } else {
-      // 6. Se já existir, atualiza
-      gatewayAccount.codigoCliente = String(codigoCliente);
-      gatewayAccount.chaveLoja = chaveLoja;
-      gatewayAccount.accessToken = accessToken;
+
+
+      if (!gatewayAccount) {
+        gatewayAccount =
+          this.gatewayAccountRepository.create({
+            userId: user.id,
+            codigoCliente: String(codigoCliente),
+            chaveLoja,
+            accessToken,
+          });
+      } else {
+        gatewayAccount.codigoCliente = String(codigoCliente);
+        gatewayAccount.chaveLoja = chaveLoja;
+        gatewayAccount.accessToken = accessToken;
+      }
+
+      // Salva no MySQL
+      const savedGatewayAccount =
+        await this.gatewayAccountRepository.save(
+          gatewayAccount,
+        );
+
+
+      return {
+        message: 'Login realizado com sucesso.',
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          document: user.document,
+        },
+        gatewayAccountId: savedGatewayAccount.id,
+      };
+    } catch (error) {
+      this.handleHttpError(error);
     }
-
-    // 7. Salva no MySQL
-    await this.gatewayAccountRepository.save(
-      gatewayAccount,
-    );
-
-    return response.data;
-  } catch (error) {
-    this.handleHttpError(error);
   }
-}
 
   // Cadastro de usuário no Gateway
   async registerUser(registerDto: GatewayRegisterDto) {
@@ -132,13 +139,13 @@ export class GatewayService {
   }
 
   // Consulta de taxas
-  async getFees() {
+  async getFees(gatewayAccount: GatewayAccount) {
     try {
       const response = await firstValueFrom(
         this.httpService.get(
           `${this.baseUrl}/fees`,
           {
-            headers: this.getAuthHeaders(),
+            headers: this.getAuthHeaders(gatewayAccount),
           },
         ),
       );
@@ -149,17 +156,68 @@ export class GatewayService {
     }
   }
 
-  // Headers de autenticação
-  private getAuthHeaders() {
-    if (!this.token) {
+  async findGatewayAccount(
+  gatewayAccountId: string,
+) {
+  return this.gatewayAccountRepository.findOne({
+    where: {
+      id: gatewayAccountId,
+    },
+  });
+}
+
+  async createPixPayment(
+    gatewayAccount: GatewayAccount,
+    dto: CreatePixPaymentDto,
+  ) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.baseUrl}/payments/pix`,
+          dto,
+          {
+            headers: this.getAuthHeaders(gatewayAccount),
+          },
+        ),
+      );
+
+      return response.data;
+    } catch (error) {
+      this.handleHttpError(error);
+    }
+  }
+
+  async getGatewayAccount(gatewayAccountId: string) {
+    const gatewayAccount =
+      await this.gatewayAccountRepository.findOne({
+        where: {
+          id: gatewayAccountId,
+        },
+      });
+
+    if (!gatewayAccount) {
       throw new HttpException(
-        'Gateway não autenticado. Faça login primeiro.',
+        'Conta do Gateway não encontrada.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    return gatewayAccount;
+  }
+
+
+  private getAuthHeaders(
+    gatewayAccount: GatewayAccount,
+  ) {
+    if (!gatewayAccount.accessToken) {
+      throw new HttpException(
+        'Conta do Gateway não possui token de acesso.',
         HttpStatus.UNAUTHORIZED,
       );
     }
 
     return {
-      Authorization: `Bearer ${this.token}`,
+      Authorization: `Bearer ${gatewayAccount.accessToken}`,
     };
   }
 
@@ -175,6 +233,10 @@ export class GatewayService {
           'Erro na comunicação com o Gateway',
         status,
       );
+    }
+
+    if (error instanceof HttpException) {
+      throw error;
     }
 
     throw new HttpException(

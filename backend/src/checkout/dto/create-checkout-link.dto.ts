@@ -7,7 +7,12 @@ import {
   MaxLength,
   IsOptional,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
+
 import { CheckoutLinkStatus } from '../../database/entities/checkout-link.entity';
 
 export class CreateCheckoutLinkDto {
@@ -22,9 +27,29 @@ export class CreateCheckoutLinkDto {
   @ApiProperty({
     enum: CheckoutLinkStatus,
     example: CheckoutLinkStatus.PIX,
+    description: 'Método de pagamento.',
   })
   @IsEnum(CheckoutLinkStatus)
   method: CheckoutLinkStatus;
+
+  @ApiProperty({
+    example: 'Pagamento pedido #123',
+    description: 'Descrição do pagamento.',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  description: string;
+
+  @ApiProperty({
+    example: '39840291040',
+    description: 'CPF ou CNPJ do pagador.',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  payerDocument: string;
 
   @ApiProperty({
     example: 'PEDIDO-12345',
@@ -36,8 +61,8 @@ export class CreateCheckoutLinkDto {
   externalReference: string;
 
   @ApiProperty({
-    example: 'uuid-da-gateway-account',
-    description: 'ID da conta do gateway utilizada.',
+    example: '1f720d99-6364-4e97-b04c-17a258108666',
+    description: 'ID da conta do Gateway utilizada.',
   })
   @IsString()
   @IsNotEmpty()
@@ -45,7 +70,7 @@ export class CreateCheckoutLinkDto {
 
   @ApiPropertyOptional({
     example: 'VISA',
-    description: 'Bandeira do cartão. Obrigatório para CARD.',
+    description: 'Obrigatório quando o método for CARD.',
   })
   @IsOptional()
   @IsString()
@@ -53,7 +78,7 @@ export class CreateCheckoutLinkDto {
 
   @ApiPropertyOptional({
     example: 3,
-    description: 'Quantidade de parcelas. Obrigatório para CARD.',
+    description: 'Obrigatório quando o método for CARD.',
   })
   @IsOptional()
   @IsInt()

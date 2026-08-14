@@ -3,10 +3,15 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { CheckoutLink } from '../database/entities/checkout-link.entity';
+import {
+  CheckoutLink,
+  CheckoutLinkStatus,
+} from '../database/entities/checkout-link.entity';
+
 import { GatewayAccount } from '../database/entities/gateway-account.entity';
 
 import { GatewayService } from '../gateway/gateway.service';
@@ -26,6 +31,7 @@ export class CheckoutService {
   ) {}
 
   async createCheckoutLink(dto: CreateCheckoutLinkDto) {
+    // Busca a conta do Gateway
     const gatewayAccount =
       await this.gatewayAccountRepository.findOne({
         where: {
@@ -39,33 +45,129 @@ export class CheckoutService {
       );
     }
 
-    const fees = await this.gatewayService.getFees();
+    let feePercent = 0;
+    let gatewayPayment: any = null;
 
-    const feePercent = this.getFeePercent(
-      fees,
-      dto.method,
-      dto.brand,
-      dto.installments,
-    );
 
-    const expiresAt = new Date();
+    if (dto.method === CheckoutLinkStatus.PIX) {
+      if (!dto.description || !dto.payerDocument) {
+        throw new BadRequestException(
+          'Descrição e documento do pagador são obrigatórios para PIX.',
+        );
+      }
+
+      gatewayPayment =
+        await this.gatewayService.createPixPayment(
+          gatewayAccount,
+          {
+            amount: dto.amount,
+            description: dto.description,
+            payerDocument: dto.payerDocument,
+            externalReference: dto.externalReference,
+          },
+        );
+    }
+
+
+    if (dto.method === CheckoutLinkStatus.CARD) {
+      const fees =
+        await this.gatewayService.getFees(
+          gatewayAccount,
+        );
+
+      feePercent = this.getFeePercent(
+        fees,
+        dto.method,
+        dto.brand,
+        dto.installments,
+      );
+    }
 
     // Link válido por 30 minutos
-    expiresAt.setMinutes(expiresAt.getMinutes() + 30);
+    const expiresAt = new Date();
 
-    const checkoutLink = this.checkoutLinkRepository.create({
-      gatewayAccountId: gatewayAccount.id,
-      amount: dto.amount,
-      method: dto.method,
-      externalReference: dto.externalReference,
-      feePercent,
-      expiresAt,
-    });
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() + 30,
+    );
+
+    // =========================
+    // Criação do checkout
+    // =========================
+    const checkoutLink =
+      this.checkoutLinkRepository.create({
+        gatewayAccountId: gatewayAccount.id,
+
+        amount: dto.amount,
+
+        method: dto.method,
+
+        externalReference:
+          dto.externalReference,
+
+        feePercent,
+
+        expiresAt,
+
+        gatewayPaymentStatus:
+          gatewayPayment?.status ?? null,
+
+        gatewayPaymentId:
+          gatewayPayment?.id ?? null,
+
+        txid:
+          gatewayPayment?.metadata?.txid ??
+          gatewayPayment?.txid ??
+          null,
+
+        emv:
+          gatewayPayment?.metadata?.emv ??
+          gatewayPayment?.emv ??
+          null,
+
+        qrCodeBase64:
+          gatewayPayment?.metadata?.qrCodeBase64 ??
+          gatewayPayment?.qrCodeBase64 ??
+          null,
+      });
 
     const savedCheckoutLink =
-      await this.checkoutLinkRepository.save(checkoutLink);
+      await this.checkoutLinkRepository.save(
+        checkoutLink,
+      );
 
-    return savedCheckoutLink;
+    // =========================
+    // Resposta
+    // =========================
+    return {
+      id: savedCheckoutLink.id,
+
+      amount: savedCheckoutLink.amount,
+
+      method: savedCheckoutLink.method,
+
+      status: savedCheckoutLink.status,
+
+      externalReference:
+        savedCheckoutLink.externalReference,
+
+      expiresAt:
+        savedCheckoutLink.expiresAt,
+
+      gatewayPaymentId:
+        savedCheckoutLink.gatewayPaymentId,
+
+      gatewayPaymentStatus:
+        savedCheckoutLink.gatewayPaymentStatus,
+
+      txid:
+        savedCheckoutLink.txid,
+
+      emv:
+        savedCheckoutLink.emv,
+
+      qrCodeBase64:
+        savedCheckoutLink.qrCodeBase64,
+    };
   }
 
   private getFeePercent(
@@ -74,42 +176,39 @@ export class CheckoutService {
     brand?: string,
     installments?: number,
   ): number {
-    if (!fees?.fees || !Array.isArray(fees.fees)) {
+    if (
+      !fees?.fees ||
+      !Array.isArray(fees.fees)
+    ) {
       throw new BadRequestException(
         'O Gateway não retornou informações de taxas válidas.',
       );
     }
 
-    if (method === 'CARD') {
-      if (!brand || !installments) {
-        throw new BadRequestException(
-          'Bandeira e quantidade de parcelas são obrigatórios para cartão.',
-        );
-      }
-
-      const fee = fees.fees.find(
-        (item: any) =>
-          item.brand === brand &&
-          item.installments === installments,
-      );
-
-      if (!fee) {
-        throw new BadRequestException(
-          `Taxa não encontrada para ${brand} em ${installments} parcelas.`,
-        );
-      }
-
-      return fee.feePercent;
-    }
-
-    if (method === 'PIX') {
+    if (method !== CheckoutLinkStatus.CARD) {
       throw new BadRequestException(
-        'A taxa de PIX não está disponível no retorno atual do Gateway.',
+        'Consulta de taxa disponível apenas para cartão.',
       );
     }
 
-    throw new BadRequestException(
-      `Método de pagamento inválido: ${method}.`,
+    if (!brand || !installments) {
+      throw new BadRequestException(
+        'Bandeira e quantidade de parcelas são obrigatórios para cartão.',
+      );
+    }
+
+    const fee = fees.fees.find(
+      (item: any) =>
+        item.brand === brand &&
+        item.installments === installments,
     );
+
+    if (!fee) {
+      throw new BadRequestException(
+        `Taxa não encontrada para ${brand} em ${installments} parcelas.`,
+      );
+    }
+
+    return fee.feePercent;
   }
 }
