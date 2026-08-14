@@ -4,6 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import { GatewayLoginDto } from './dto/gateway-login.dto';
+import { GatewayRegisterDto } from './dto/gateway-register.dto';
 
 @Injectable()
 export class GatewayService {
@@ -18,6 +19,7 @@ export class GatewayService {
       this.configService.getOrThrow<string>('GATEWAY_BASE_URL');
   }
 
+  // Login
   async login(loginDto: GatewayLoginDto) {
     try {
       const response = await firstValueFrom(
@@ -34,6 +36,18 @@ export class GatewayService {
       this.handleHttpError(error);
     }
   }
+
+  // Register
+  async registerUser(registerDto: GatewayRegisterDto) {
+  try {
+    const response = await firstValueFrom(
+      this.httpService.post(`${this.baseUrl}/users`, registerDto),
+    );
+    return response.data;
+  } catch (error) {
+    this.handleHttpError(error);
+  }
+}
 
   async getFees() {
     try {
