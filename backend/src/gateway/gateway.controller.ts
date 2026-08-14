@@ -8,17 +8,20 @@ import { ApiOperation } from '@nestjs/swagger';
 export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
 
+  // Endpoint to get fees
   @Get('fees')
   async getFees() {
     return this.gatewayService.getFees();
   }
 
+  // Login endpoint
   @Post('login')
   @ApiOperation({ summary: 'Realiza o login do lojista no gateway' })
   async login(@Body() loginDto: GatewayLoginDto) {
     return this.gatewayService.login(loginDto);
   }
 
+  // Register endpoint
   @Post('register')
   @ApiOperation({ summary: 'Realiza o cadastro do lojista no gateway' })
   async register(@Body() registerDto: GatewayRegisterDto) {
