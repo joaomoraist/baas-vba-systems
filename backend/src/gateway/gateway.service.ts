@@ -21,6 +21,8 @@ import { User } from '../database/entities/user.entity';
 
 import { CreatePixPaymentDto } from './dto/create-pix-payment.dto';
 import { CreateCardPaymentDto } from './dto/create-card-payment.dto';
+import { CreateWithdrawDto } from '../withdrawal/dto/create-withdraw.dto';
+
 
 @Injectable()
 export class GatewayService {
@@ -56,7 +58,6 @@ export class GatewayService {
         );
       }
 
-
       const response = await firstValueFrom(
         this.httpService.post(
           `${this.baseUrl}/auth/login`,
@@ -78,14 +79,12 @@ export class GatewayService {
         );
       }
 
-
       let gatewayAccount =
         await this.gatewayAccountRepository.findOne({
           where: {
             userId: user.id,
           },
         });
-
 
       if (!gatewayAccount) {
         gatewayAccount =
@@ -106,7 +105,6 @@ export class GatewayService {
         await this.gatewayAccountRepository.save(
           gatewayAccount,
         );
-
 
       return {
         message: 'Login realizado com sucesso.',
@@ -158,14 +156,14 @@ export class GatewayService {
   }
 
   async findGatewayAccount(
-  gatewayAccountId: string,
-) {
-  return this.gatewayAccountRepository.findOne({
-    where: {
-      id: gatewayAccountId,
-    },
-  });
-}
+    gatewayAccountId: string,
+  ) {
+    return this.gatewayAccountRepository.findOne({
+      where: {
+        id: gatewayAccountId,
+      },
+    });
+  }
 
   async createPixPayment(
     gatewayAccount: GatewayAccount,
@@ -189,25 +187,25 @@ export class GatewayService {
   }
 
   async createCardPayment(
-  gatewayAccount: GatewayAccount,
-  dto: CreateCardPaymentDto,
-) {
-  try {
-    const response = await firstValueFrom(
-      this.httpService.post(
-        `${this.baseUrl}/payments/card`,
-        dto,
-        {
-          headers: this.getAuthHeaders(gatewayAccount),
-        },
-      ),
-    );
+    gatewayAccount: GatewayAccount,
+    dto: CreateCardPaymentDto,
+  ) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.baseUrl}/payments/card`,
+          dto,
+          {
+            headers: this.getAuthHeaders(gatewayAccount),
+          },
+        ),
+      );
 
-    return response.data;
-  } catch (error) {
-    this.handleHttpError(error);
+      return response.data;
+    } catch (error) {
+      this.handleHttpError(error);
+    }
   }
-}
 
   async getGatewayAccount(gatewayAccountId: string) {
     const gatewayAccount =
@@ -228,32 +226,74 @@ export class GatewayService {
   }
 
   async registerWebhook(
-  gatewayAccount: GatewayAccount,
-  event: string,
-  url: string,
-  secret?: string,
-) {
-  try {
-    const response = await firstValueFrom(
-      this.httpService.post(
-        `${this.baseUrl}/webhooks`,
-        {
-          event,
-          url,
-          secret,
-        },
-        {
-          headers: this.getAuthHeaders(gatewayAccount),
-        },
-      ),
-    );
+    gatewayAccount: GatewayAccount,
+    event: string,
+    url: string,
+    secret?: string,
+  ) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.baseUrl}/webhooks`,
+          {
+            event,
+            url,
+            secret,
+          },
+          {
+            headers: this.getAuthHeaders(gatewayAccount),
+          },
+        ),
+      );
 
-    return response.data;
-  } catch (error) {
-    this.handleHttpError(error);
+      return response.data;
+    } catch (error) {
+      this.handleHttpError(error);
+    }
   }
-}
 
+  async createWithdrawal(
+    gatewayAccount: GatewayAccount,
+    dto: Omit<CreateWithdrawDto, 'gatewayAccountId'>,
+  ) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.baseUrl}/withdrawals`,
+          dto,
+          {
+            headers: this.getAuthHeaders(
+              gatewayAccount,
+            ),
+          },
+        ),
+      );
+
+      return response.data;
+    } catch (error) {
+      this.handleHttpError(error);
+    }
+  }
+
+  async getWithdrawal(
+    gatewayAccount: GatewayAccount,
+    withdrawalId: string,
+  ) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(
+          `${this.baseUrl}/withdrawals/${withdrawalId}`,
+          {
+            headers: this.getAuthHeaders(gatewayAccount),
+          },
+        ),
+      );
+
+      return response.data;
+    } catch (error) {
+      this.handleHttpError(error);
+    }
+  }
 
   private getAuthHeaders(
     gatewayAccount: GatewayAccount,

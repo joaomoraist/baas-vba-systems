@@ -20,6 +20,11 @@ import {
   WebhookEventStatus,
 } from '../database/entities/webhook-event.entity';
 
+import {
+  Withdrawal,
+  WithdrawalStatus,
+} from '../database/entities/withdrawal.entity';
+
 import { WebhookDto } from './dto/webhook.dto';
 
 import * as crypto from 'crypto';
@@ -35,18 +40,30 @@ export class WebhookService {
     private readonly checkoutRepository:
       Repository<CheckoutLink>,
 
+    @InjectRepository(Withdrawal)
+    private readonly withdrawalRepository:
+      Repository<Withdrawal>,
+
+
     private readonly configService: ConfigService,
   ) {}
 
   async processWebhook(
     payload: WebhookDto,
     signature?: string,
+    expectedEventType?: string,
   ) {
     const eventId = payload.eventId;
 
     if (!eventId) {
       throw new ConflictException(
         'Webhook sem eventId.',
+      );
+    }
+
+    if (expectedEventType && payload.eventType !== expectedEventType) {
+      throw new ConflictException(
+        `Evento inválido para este endpoint. Esperado: ${expectedEventType}.`,
       );
     }
 
@@ -162,6 +179,55 @@ export class WebhookService {
         }
       }
     }
+    if (payload.eventType === 'WITHDRAWAL') {
+    let withdrawal: Withdrawal | null = null;
+
+    if (payload.gatewayWithdrawalId) {
+      withdrawal =
+        await this.withdrawalRepository.findOne({
+          where: {
+            gatewayWithdrawalId:
+              payload.gatewayWithdrawalId,
+          },
+        });
+    }
+
+    if (!withdrawal && payload.externalReference) {
+      withdrawal =
+        await this.withdrawalRepository.findOne({
+          where: {
+            description:
+              payload.externalReference,
+          },
+        });
+    }
+
+    if (withdrawal) {
+      withdrawal.gatewayWithdrawalId =
+        payload.gatewayWithdrawalId ??
+        withdrawal.gatewayWithdrawalId;
+
+      if (
+        payload.status ===
+        WithdrawalStatus.APPROVED
+      ) {
+        withdrawal.status =
+          WithdrawalStatus.APPROVED;
+      }
+
+      if (
+        payload.status ===
+        WithdrawalStatus.DENIED
+      ) {
+        withdrawal.status =
+          WithdrawalStatus.DENIED;
+      }
+
+      await this.withdrawalRepository.save(
+        withdrawal,
+      );
+    }
+  }
 
     webhookEvent.status =
       WebhookEventStatus.PROCESSED;

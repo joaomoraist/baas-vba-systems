@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsNotEmpty,
   IsOptional,
@@ -15,6 +15,7 @@ export class WebhookDto {
 
   @ApiProperty({
     example: 'PAYMENT_PIX',
+    enum: ['PAYMENT_PIX', 'PAYMENT_CARD', 'WITHDRAWAL'],
   })
   @IsString()
   @IsNotEmpty()
@@ -22,24 +23,30 @@ export class WebhookDto {
 
   @ApiProperty({
     example: 'APPROVED',
+    enum: ['APPROVED', 'DENIED'],
   })
   @IsString()
   @IsNotEmpty()
   status: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'PEDIDO-CHECKOUT-001',
-    required: false,
   })
   @IsString()
   @IsOptional()
   externalReference?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'pagamento-teste-001',
-    required: false,
   })
   @IsString()
   @IsOptional()
   gatewayPaymentId?: string;
+
+  @ApiPropertyOptional({
+    example: 'saque-gateway-001',
+  })
+  @IsString()
+  @IsOptional()
+  gatewayWithdrawalId?: string;
 }

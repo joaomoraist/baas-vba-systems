@@ -61,25 +61,37 @@ export class GatewayController {
       );
     }
 
-    const events = [
-      'PAYMENT_PIX',
-      'PAYMENT_CARD',
-      'WITHDRAWAL',
+    const baseUrl = body.url.replace(/\/$/, '');
+
+    const webhooks = [
+      {
+        event: 'PAYMENT_PIX',
+        url: `${baseUrl}/webhooks/payment-pix`,
+      },
+      {
+        event: 'PAYMENT_CARD',
+        url: `${baseUrl}/webhooks/payment-card`,
+      },
+      {
+        event: 'WITHDRAWAL',
+        url: `${baseUrl}/webhooks/withdrawal`,
+      },
     ];
 
     const results: any[] = [];
 
-    for (const event of events) {
+    for (const webhook of webhooks) {
       const result =
         await this.gatewayService.registerWebhook(
           gatewayAccount,
-          event,
-          body.url,
+          webhook.event,
+          webhook.url,
           body.secret,
         );
 
       results.push({
-        event,
+        event: webhook.event,
+        url: webhook.url,
         result,
       });
     }

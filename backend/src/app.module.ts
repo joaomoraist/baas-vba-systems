@@ -8,6 +8,7 @@ import { GatewayModule } from './gateway/gateway.module';
 import { CheckoutModule } from './checkout/checkout.module';
 import { UsersModule } from './users/users.module';
 import { WebhookModule } from './webhook/webhook.module';
+import { WithdrawalModule } from './withdrawal/withdrawal.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { WebhookModule } from './webhook/webhook.module';
     CheckoutModule,
     UsersModule,
     WebhookModule,
+    WithdrawalModule,
 
   ],
 

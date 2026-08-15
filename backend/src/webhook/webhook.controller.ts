@@ -16,11 +16,11 @@ export class WebhookController {
     private readonly webhookService: WebhookService,
   ) {}
 
-  @Post()
+  @Post('payment-pix')
   @ApiOperation({
-    summary: 'Recebe webhook do Gateway',
+    summary: 'Recebe webhook de pagamento Pix do Gateway',
   })
-  async receiveWebhook(
+  async receivePixWebhook(
     @Body() payload: WebhookDto,
     @Headers('x-lera-box-signature')
     signature: string,
@@ -28,6 +28,39 @@ export class WebhookController {
     return this.webhookService.processWebhook(
       payload,
       signature,
+      'PAYMENT_PIX',
+    );
+  }
+
+  @Post('payment-card')
+  @ApiOperation({
+    summary: 'Recebe webhook de pagamento com cartão do Gateway',
+  })
+  async receiveCardWebhook(
+    @Body() payload: WebhookDto,
+    @Headers('x-lera-box-signature')
+    signature: string,
+  ) {
+    return this.webhookService.processWebhook(
+      payload,
+      signature,
+      'PAYMENT_CARD',
+    );
+  }
+
+  @Post('withdrawal')
+  @ApiOperation({
+    summary: 'Recebe webhook de saque do Gateway',
+  })
+  async receiveWithdrawalWebhook(
+    @Body() payload: WebhookDto,
+    @Headers('x-lera-box-signature')
+    signature: string,
+  ) {
+    return this.webhookService.processWebhook(
+      payload,
+      signature,
+      'WITHDRAWAL',
     );
   }
 }
