@@ -44,7 +44,6 @@ export class WebhookService {
     private readonly withdrawalRepository:
       Repository<Withdrawal>,
 
-
     private readonly configService: ConfigService,
   ) {}
 
@@ -61,12 +60,14 @@ export class WebhookService {
       );
     }
 
-    if (expectedEventType && payload.eventType !== expectedEventType) {
+    if (
+      expectedEventType &&
+      payload.eventType !== expectedEventType
+    ) {
       throw new ConflictException(
         `Evento inválido para este endpoint. Esperado: ${expectedEventType}.`,
       );
     }
-
 
     const secret =
       this.configService.get<string>(
@@ -96,7 +97,7 @@ export class WebhookService {
 
       if (
         signatureBuffer.length !==
-        expectedBuffer.length ||
+          expectedBuffer.length ||
         !crypto.timingSafeEqual(
           signatureBuffer,
           expectedBuffer,
@@ -107,7 +108,6 @@ export class WebhookService {
         );
       }
     }
-
 
     const existingEvent =
       await this.webhookRepository.findOne({
@@ -179,55 +179,76 @@ export class WebhookService {
         }
       }
     }
+
     if (payload.eventType === 'WITHDRAWAL') {
-    let withdrawal: Withdrawal | null = null;
+      let withdrawal: Withdrawal | null = null;
 
-    if (payload.gatewayWithdrawalId) {
-      withdrawal =
-        await this.withdrawalRepository.findOne({
-          where: {
-            gatewayWithdrawalId:
-              payload.gatewayWithdrawalId,
-          },
-        });
-    }
-
-    if (!withdrawal && payload.externalReference) {
-      withdrawal =
-        await this.withdrawalRepository.findOne({
-          where: {
-            description:
-              payload.externalReference,
-          },
-        });
-    }
-
-    if (withdrawal) {
-      withdrawal.gatewayWithdrawalId =
-        payload.gatewayWithdrawalId ??
-        withdrawal.gatewayWithdrawalId;
-
-      if (
-        payload.status ===
-        WithdrawalStatus.APPROVED
-      ) {
-        withdrawal.status =
-          WithdrawalStatus.APPROVED;
+      if (payload.gatewayWithdrawalId) {
+        withdrawal =
+          await this.withdrawalRepository.findOne({
+            where: {
+              gatewayWithdrawalId:
+                payload.gatewayWithdrawalId,
+            },
+          });
       }
 
       if (
-        payload.status ===
-        WithdrawalStatus.DENIED
+        !withdrawal &&
+        payload.externalReference
       ) {
-        withdrawal.status =
-          WithdrawalStatus.DENIED;
+        withdrawal =
+          await this.withdrawalRepository.findOne({
+            where: {
+              externalReference:
+                payload.externalReference,
+            },
+          });
       }
 
-      await this.withdrawalRepository.save(
-        withdrawal,
-      );
+      if (withdrawal) {
+        if (payload.gatewayWithdrawalId) {
+          withdrawal.gatewayWithdrawalId =
+            payload.gatewayWithdrawalId;
+        }
+
+        if (
+          payload.status ===
+          WithdrawalStatus.PENDING
+        ) {
+          withdrawal.status =
+            WithdrawalStatus.PENDING;
+        }
+
+        if (
+          payload.status ===
+          WithdrawalStatus.APPROVED
+        ) {
+          withdrawal.status =
+            WithdrawalStatus.APPROVED;
+        }
+
+        if (
+          payload.status ===
+          WithdrawalStatus.DENIED
+        ) {
+          withdrawal.status =
+            WithdrawalStatus.DENIED;
+        }
+
+        if (
+          payload.status ===
+          WithdrawalStatus.CANCELLED
+        ) {
+          withdrawal.status =
+            WithdrawalStatus.CANCELLED;
+        }
+
+        await this.withdrawalRepository.save(
+          withdrawal,
+        );
+      }
     }
-  }
 
     webhookEvent.status =
       WebhookEventStatus.PROCESSED;
