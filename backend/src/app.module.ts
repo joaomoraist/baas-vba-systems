@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { CheckoutModule } from './checkout/checkout.module';
 import { UsersModule } from './users/users.module';
+import { WebhookModule } from './webhook/webhook.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { UsersModule } from './users/users.module';
     GatewayModule,
     CheckoutModule,
     UsersModule,
+    WebhookModule,
 
   ],
 

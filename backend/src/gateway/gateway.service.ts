@@ -227,6 +227,33 @@ export class GatewayService {
     return gatewayAccount;
   }
 
+  async registerWebhook(
+  gatewayAccount: GatewayAccount,
+  event: string,
+  url: string,
+  secret?: string,
+) {
+  try {
+    const response = await firstValueFrom(
+      this.httpService.post(
+        `${this.baseUrl}/webhooks`,
+        {
+          event,
+          url,
+          secret,
+        },
+        {
+          headers: this.getAuthHeaders(gatewayAccount),
+        },
+      ),
+    );
+
+    return response.data;
+  } catch (error) {
+    this.handleHttpError(error);
+  }
+}
+
 
   private getAuthHeaders(
     gatewayAccount: GatewayAccount,
