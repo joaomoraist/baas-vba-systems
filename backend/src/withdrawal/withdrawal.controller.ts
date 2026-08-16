@@ -31,16 +31,19 @@ export class WithdrawalController {
     );
   }
 
-  @Get(':id')
+  @Get(':gatewayAccountId/:id')
   @ApiOperation({
     summary: 'Consulta um saque',
   })
   async findOne(
+    @Param('gatewayAccountId') gatewayAccountId: string,
     @Param('id') id: string,
   ) {
     return this.withdrawalService.findOne(
-      '1f720d99-6364-4e97-b04c-17a258108666',
+      gatewayAccountId,
       id,
     );
   }
+
+
 }
