@@ -120,10 +120,7 @@ function Dashboard() {
   const [balance, setBalance] = useState('R$ 0,00');
   const [loading, setLoading] = useState(true);
 
-  const [transactions, setTransactions] = useState<any[]>(
-    []
-  );
-
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [transactionsLoading, setTransactionsLoading] =
     useState(true);
 
@@ -132,35 +129,54 @@ function Dashboard() {
 
   const [page, setPage] = useState('dashboard');
 
-  // Checkout
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [payerDocument, setPayerDocument] = useState('');
   const [method, setMethod] = useState('');
-  const [loadingCheckout, setLoadingCheckout] = useState(false);
-  const [checkoutResult, setCheckoutResult] = useState<any>(null);
+  const [loadingCheckout, setLoadingCheckout] =
+    useState(false);
+  const [checkoutResult, setCheckoutResult] =
+    useState<any>(null);
   const [checkoutError, setCheckoutError] = useState('');
 
   const [brand, setBrand] = useState('');
-  const [installments, setInstallments] = useState<number | ''>('');
+  const [installments, setInstallments] =
+    useState<number | ''>('');
   const [cardNumber, setCardNumber] = useState('');
   const [cardHolder, setCardHolder] = useState('');
   const [expiryMonth, setExpiryMonth] = useState('');
   const [expiryYear, setExpiryYear] = useState('');
   const [cvv, setCvv] = useState('');
 
+  const [withdrawalAmount, setWithdrawalAmount] =
+    useState('');
   const [pixKey, setPixKey] = useState('');
-  const [document, setDocument] = useState('');
-  const [externalReference, setExternalReference] = useState('');
-  const [error, setError] = useState('');
-  const [result, setResult] = useState<any>(null);
+  const [withdrawalDocument, setWithdrawalDocument] =
+    useState('');
+  const [withdrawalDescription, setWithdrawalDescription] =
+    useState('');
+  const [
+    withdrawalExternalReference,
+    setWithdrawalExternalReference,
+  ] = useState('');
+  const [withdrawalLoading, setWithdrawalLoading] =
+    useState(false);
+  const [withdrawalError, setWithdrawalError] =
+    useState('');
+  const [withdrawalResult, setWithdrawalResult] =
+    useState<any>(null);
+  const [withdrawalStatusLoading, setWithdrawalStatusLoading] =
+    useState(false);
+  const [withdrawalStatusResult, setWithdrawalStatusResult] =
+    useState<any>(null);
 
-  const [withdrawalAmount, setWithdrawalAmount] = useState('');
-  const [withdrawalDescription, setWithdrawalDescription] = useState('');
-  const [withdrawalLoading, setWithdrawalLoading] = useState(false);
-  const [withdrawalError, setWithdrawalError] = useState('');
-  const [withdrawalResult, setWithdrawalResult] = useState<any>(null);
-  const [withdrawalStatusLoading, setWithdrawalStatusLoading] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookSecret, setWebhookSecret] = useState('');
+  const [webhookLoading, setWebhookLoading] =
+    useState(false);
+  const [webhookError, setWebhookError] = useState('');
+  const [webhookResult, setWebhookResult] =
+    useState<any>(null);
 
   useEffect(() => {
     async function loadWallet() {
@@ -186,6 +202,8 @@ function Dashboard() {
     }
 
     async function loadTransactions() {
+      setTransactionsLoading(true);
+
       try {
         const params = new URLSearchParams();
 
@@ -214,7 +232,7 @@ function Dashboard() {
           );
         }
 
-        setTransactions(data.transactions);
+        setTransactions(data.transactions || []);
       } catch (error) {
         console.error(error);
       } finally {
@@ -230,7 +248,6 @@ function Dashboard() {
     typeFilter,
   ]);
 
-  // Criar checkout Pix
   async function handleCreateCheckout(
     e: React.FormEvent
   ) {
@@ -256,8 +273,9 @@ function Dashboard() {
           'Informe um valor válido.'
         );
       }
+
       const body = {
-        amount: Number(amount) * 100,
+        amount: amountInCents,
         method,
         description,
         payerDocument,
@@ -315,6 +333,7 @@ function Dashboard() {
     setWithdrawalLoading(true);
     setWithdrawalError('');
     setWithdrawalResult(null);
+    setWithdrawalStatusResult(null);
 
     try {
       if (!gatewayAccountId) {
@@ -333,18 +352,6 @@ function Dashboard() {
         );
       }
 
-      if (!pixKey) {
-        throw new Error(
-          'Informe a chave Pix.'
-        );
-      }
-
-      if (!document) {
-        throw new Error(
-          'Informe o documento.'
-        );
-      }
-
       const response = await fetch(
         'http://localhost:3000/withdrawals',
         {
@@ -356,11 +363,12 @@ function Dashboard() {
             gatewayAccountId,
             amount: amountInCents,
             pixKey,
-            document,
+            document: withdrawalDocument,
             description:
               withdrawalDescription || undefined,
             externalReference:
-              externalReference || undefined,
+              withdrawalExternalReference ||
+              undefined,
           }),
         }
       );
@@ -389,305 +397,111 @@ function Dashboard() {
   }
 
   async function handleWithdrawalStatus() {
-  //console.log('Clicou em consultar status');
-
-  if (!withdrawalResult?.id) {
-    console.log('ID do saque não encontrado');
-    return;
-  }
+    if (
+      !gatewayAccountId ||
+      !withdrawalResult?.id
+    ) {
+      return;
+    }
 
     setWithdrawalStatusLoading(true);
     setWithdrawalError('');
 
     try {
       const url =
-        `http://localhost:3000/withdrawals/${gatewayAccountId}/${withdrawalResult.id}`;
-
-      console.log('Consultando:', url);
+        `http://localhost:3000/withdrawals/` +
+        `${gatewayAccountId}/` +
+        `${withdrawalResult.id}`;
 
       const response = await fetch(url);
 
-      console.log('Status HTTP:', response.status);
-
       const data = await response.json();
-
-      console.log('Resposta:', data);
 
       if (!response.ok) {
         throw new Error(
           data.message ||
-            'Erro ao consultar saque.'
+            'Erro ao consultar status do saque.'
         );
       }
 
-      setWithdrawalResult(
-        data.withdrawal || data
-      );
+      setWithdrawalStatusResult(data);
     } catch (error) {
-      console.error('Erro:', error);
-
       setWithdrawalError(
         error instanceof Error
           ? error.message
-          : 'Erro ao consultar saque.'
+          : 'Erro ao consultar status do saque.'
       );
     } finally {
       setWithdrawalStatusLoading(false);
     }
   }
 
-  if (page === 'withdrawal') {
-  return (
-    <div className="app">
-      <aside className="sidebar">
-        <nav className="menu">
-          <button
-            className="menu-item"
-            onClick={() =>
-              setPage('dashboard')
-            }
-          >
-            <span>⌂</span>
-            Dashboard
-          </button>
+  async function handleRegisterWebhooks(
+    e: React.FormEvent
+  ) {
+    e.preventDefault();
 
-          <button
-            className="menu-item"
-            onClick={() =>
-              setPage('checkout')
-            }
-          >
-            <span>↗</span>
-            Checkout
-          </button>
+    setWebhookLoading(true);
+    setWebhookError('');
+    setWebhookResult(null);
 
-          <button className="menu-item">
-            <span>▣</span>
-            Transações
-          </button>
+    try {
+      if (!gatewayAccountId) {
+        throw new Error(
+          'Conta do Gateway não encontrada.'
+        );
+      }
 
-          <button className="menu-item active">
-            <span>↓</span>
-            Saques
-          </button>
+      if (!webhookUrl) {
+        throw new Error(
+          'Informe a URL da API BaaS.'
+        );
+      }
 
-          <button className="menu-item">
-            <span>⚙</span>
-            Webhooks
-          </button>
-        </nav>
+      const response = await fetch(
+        'http://localhost:3000/gateway/webhooks',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            gatewayAccountId,
+            url: webhookUrl,
+            secret:
+              webhookSecret || undefined,
+          }),
+        }
+      );
 
-        <div className="sidebar-footer">
-          <span className="status-dot"></span>
-          Gateway conectado
-        </div>
-      </aside>
+      const data = await response.json();
 
-      <main className="main">
-        <header className="header">
-          <div>
-            <h1>Saques</h1>
-            <p>
-              Solicite um saque para uma chave Pix
-            </p>
-          </div>
-        </header>
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            'Erro ao cadastrar webhooks.'
+        );
+      }
 
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Novo saque</h2>
-              <p>
-                Informe os dados do saque
-              </p>
-            </div>
-          </div>
+      setWebhookResult(data);
+    } catch (error) {
+      setWebhookError(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao cadastrar webhooks.'
+      );
+    } finally {
+      setWebhookLoading(false);
+    }
+  }
 
-          <form
-            className="checkout-form"
-            onSubmit={handleWithdrawal}
-          >
-            <label>Valor</label>
-
-            <input
-              type="number"
-              placeholder="Ex: 50.00"
-              value={withdrawalAmount}
-              onChange={(e) =>
-                setWithdrawalAmount(
-                  e.target.value
-                )
-              }
-              step="0.01"
-              min="0.01"
-            />
-
-            <label>Chave Pix</label>
-
-            <input
-              type="text"
-              placeholder="Chave Pix"
-              value={pixKey}
-              onChange={(e) =>
-                setPixKey(e.target.value)
-              }
-            />
-
-            <label>Documento</label>
-
-            <input
-              type="text"
-              placeholder="CPF ou CNPJ"
-              value={document}
-              onChange={(e) =>
-                setDocument(e.target.value)
-              }
-            />
-
-            <label>Descrição</label>
-
-            <input
-              type="text"
-              placeholder="Ex: Saque para conta pessoal"
-              value={withdrawalDescription}
-              onChange={(e) =>
-                setWithdrawalDescription(
-                  e.target.value
-                )
-              }
-            />
-
-            <label>
-              Referência externa
-            </label>
-
-            <input
-              type="text"
-              placeholder="Ex: SAQUE-001"
-              value={externalReference}
-              onChange={(e) =>
-                setExternalReference(
-                  e.target.value
-                )
-              }
-            />
-
-            {withdrawalError && (
-              <div className="login-error">
-                {withdrawalError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="login-button"
-              disabled={withdrawalLoading}
-            >
-              {withdrawalLoading
-                ? 'Solicitando...'
-                : 'Solicitar saque'}
-            </button>
-          </form>
-        </div>
-
-        {withdrawalResult && (
-          <div className="panel">
-            <div className="panel-header">
-              <div>
-                <h2>Saque solicitado</h2>
-                <p>
-                  Acompanhe o status da solicitação
-                </p>
-              </div>
-            </div>
-
-            <p>
-              <strong>Status:</strong>{' '}
-              {withdrawalResult.status || '-'}
-            </p>
-
-            <p>
-              <strong>Valor:</strong>{' '}
-              {withdrawalResult.amount !==
-              undefined
-                ? `R$ ${(withdrawalResult.amount / 100).toFixed(2)}`
-                : '-'}
-            </p>
-
-            <p>
-              <strong>Referência:</strong>{' '}
-              {withdrawalResult.externalReference ||
-                '-'}
-            </p>
-
-            <p>
-              <strong>ID:</strong>{' '}
-              {withdrawalResult.id || '-'}
-            </p>
-
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={
-                handleWithdrawalStatus
-              }
-              disabled={
-                withdrawalStatusLoading
-              }
-            >
-              {withdrawalStatusLoading
-                ? 'Consultando...'
-                : 'Consultar status'}
-            </button>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-  // Página de Checkout
   if (page === 'checkout') {
     return (
       <div className="app">
-        <aside className="sidebar">
-          <nav className="menu">
-            <button
-              className="menu-item"
-              onClick={() =>
-                setPage('dashboard')
-              }
-            >
-              <span>⌂</span>
-              Dashboard
-            </button>
-
-            <button className="menu-item active">
-              <span>↗</span>
-              Checkout
-            </button>
-
-            <button className="menu-item">
-              <span>▣</span>
-              Transações
-            </button>
-
-            <button className="menu-item" onClick={() => setPage('withdrawal')}>
-              <span>↓</span>
-              Saques
-            </button>
-
-            <button className="menu-item">
-              <span>⚙</span>
-              Webhooks
-            </button>
-          </nav>
-
-          <div className="sidebar-footer">
-            <span className="status-dot"></span>
-            Gateway conectado
-          </div>
-        </aside>
+        <Sidebar
+          page={page}
+          setPage={setPage}
+        />
 
         <main className="main">
           <header className="header">
@@ -730,10 +544,21 @@ function Dashboard() {
                 Método de pagamento
               </label>
 
-              <select value={method} onChange={(e) => setMethod(e.target.value)}>
-                <option value="">Selecione o método</option>
-                  <option value="PIX">Pix</option>
-                  <option value="CARD">Cartão</option>
+              <select
+                value={method}
+                onChange={(e) =>
+                  setMethod(e.target.value)
+                }
+              >
+                <option value="">
+                  Selecione o método
+                </option>
+                <option value="PIX">
+                  Pix
+                </option>
+                <option value="CARD">
+                  Cartão
+                </option>
               </select>
 
               <label>Descrição</label>
@@ -762,7 +587,7 @@ function Dashboard() {
                     e.target.value
                   )
                 }
-                />
+              />
 
               {method === 'CARD' && (
                 <>
@@ -770,12 +595,22 @@ function Dashboard() {
 
                   <select
                     value={brand}
-                    onChange={(e) => setBrand(e.target.value)}
+                    onChange={(e) =>
+                      setBrand(e.target.value)
+                    }
                   >
-                    <option value="">Selecione</option>
-                    <option value="VISA">Visa</option>
-                    <option value="MASTERCARD">Mastercard</option>
-                    <option value="ELO">Elo</option>
+                    <option value="">
+                      Selecione
+                    </option>
+                    <option value="VISA">
+                      Visa
+                    </option>
+                    <option value="MASTERCARD">
+                      Mastercard
+                    </option>
+                    <option value="ELO">
+                      Elo
+                    </option>
                   </select>
 
                   <label>Parcelas</label>
@@ -783,55 +618,86 @@ function Dashboard() {
                   <select
                     value={installments}
                     onChange={(e) =>
-                      setInstallments(Number(e.target.value))
+                      setInstallments(
+                        Number(e.target.value)
+                      )
                     }
                   >
-                    <option value="">Selecione</option>
+                    <option value="">
+                      Selecione
+                    </option>
 
-                    {Array.from({ length: 21 }, (_, index) => (
-                      <option
-                        key={index + 1}
-                        value={index + 1}
-                      >
-                        {index + 1}x
-                      </option>
-                    ))}
+                    {Array.from(
+                      { length: 21 },
+                      (_, index) => (
+                        <option
+                          key={index + 1}
+                          value={index + 1}
+                        >
+                          {index + 1}x
+                        </option>
+                      )
+                    )}
                   </select>
 
-                  <label>Número do cartão</label>
+                  <label>
+                    Número do cartão
+                  </label>
 
                   <input
                     type="text"
                     placeholder="4111111111111111"
                     value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
+                    onChange={(e) =>
+                      setCardNumber(
+                        e.target.value
+                      )
+                    }
                   />
 
-                  <label>Nome no cartão</label>
+                  <label>
+                    Nome no cartão
+                  </label>
 
                   <input
                     type="text"
                     placeholder="SEU NOME"
                     value={cardHolder}
-                    onChange={(e) => setCardHolder(e.target.value)}
+                    onChange={(e) =>
+                      setCardHolder(
+                        e.target.value
+                      )
+                    }
                   />
 
-                  <label>Mês de validade</label>
+                  <label>
+                    Mês de validade
+                  </label>
 
                   <input
                     type="text"
                     placeholder="12"
                     value={expiryMonth}
-                    onChange={(e) => setExpiryMonth(e.target.value)}
+                    onChange={(e) =>
+                      setExpiryMonth(
+                        e.target.value
+                      )
+                    }
                   />
 
-                  <label>Ano de validade</label>
+                  <label>
+                    Ano de validade
+                  </label>
 
                   <input
                     type="text"
                     placeholder="2030"
                     value={expiryYear}
-                    onChange={(e) => setExpiryYear(e.target.value)}
+                    onChange={(e) =>
+                      setExpiryYear(
+                        e.target.value
+                      )
+                    }
                   />
 
                   <label>CVV</label>
@@ -840,7 +706,9 @@ function Dashboard() {
                     type="text"
                     placeholder="123"
                     value={cvv}
-                    onChange={(e) => setCvv(e.target.value)}
+                    onChange={(e) =>
+                      setCvv(e.target.value)
+                    }
                   />
                 </>
               )}
@@ -923,56 +791,494 @@ function Dashboard() {
     );
   }
 
-  // Dashboard
+  if (page === 'transactions') {
+    return (
+      <div className="app">
+        <Sidebar
+          page={page}
+          setPage={setPage}
+        />
+
+        <main className="main">
+          <header className="header">
+            <div>
+              <h1>Transações</h1>
+              <p>
+                Extrato e movimentações da carteira
+              </p>
+            </div>
+          </header>
+
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2>
+                  Todas as transações
+                </h2>
+                <p>
+                  Filtre as movimentações da sua
+                  conta
+                </p>
+              </div>
+            </div>
+
+            <div className="filters">
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(
+                    e.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Todos os status
+                </option>
+
+                <option value="APPROVED">
+                  Aprovado
+                </option>
+
+                <option value="DENIED">
+                  Negado
+                </option>
+
+                <option value="EXPIRED">
+                  Expirado
+                </option>
+
+                <option value="CANCELLED">
+                  Cancelado
+                </option>
+              </select>
+
+              <select
+                value={typeFilter}
+                onChange={(e) =>
+                  setTypeFilter(
+                    e.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Todos os tipos
+                </option>
+
+                <option value="PAYMENT">
+                  Pagamento
+                </option>
+
+                <option value="WITHDRAWAL">
+                  Saque
+                </option>
+              </select>
+            </div>
+
+            <div className="transactions-list">
+              {transactionsLoading ? (
+                <div className="empty-state">
+                  <h3>
+                    Carregando transações...
+                  </h3>
+                </div>
+              ) : transactions.length ===
+                0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">
+                    ↗
+                  </div>
+
+                  <h3>
+                    Nenhuma transação
+                  </h3>
+
+                  <p>
+                    Nenhuma movimentação
+                    encontrada com os filtros
+                    selecionados.
+                  </p>
+                </div>
+              ) : (
+                transactions.map(
+                  (transaction) => (
+                    <div
+                      className="transaction"
+                      key={transaction.id}
+                    >
+                      <div className="transaction-info">
+                        <strong>
+                          {
+                            transaction.description
+                          }
+                        </strong>
+
+                        <span>
+                          {transaction.type}
+                        </span>
+                      </div>
+
+                      <div className="transaction-details">
+                        <strong>
+                          {
+                            transaction.amountFormatted
+                          }
+                        </strong>
+
+                        <span
+                          className={`transaction-status ${transaction.status.toLowerCase()}`}
+                        >
+                          {
+                            transaction.status
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  )
+                )
+              )}
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (page === 'withdrawal') {
+    return (
+      <div className="app">
+        <Sidebar
+          page={page}
+          setPage={setPage}
+        />
+
+        <main className="main">
+          <header className="header">
+            <div>
+              <h1>Saques</h1>
+              <p>
+                Solicite um saque para uma chave
+                Pix
+              </p>
+            </div>
+          </header>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h2>Novo saque</h2>
+                <p>
+                  Informe os dados do saque
+                </p>
+              </div>
+            </div>
+
+            <form
+              className="checkout-form"
+              onSubmit={handleWithdrawal}
+            >
+              <label>Valor</label>
+
+              <input
+                type="number"
+                placeholder="50.00"
+                value={withdrawalAmount}
+                onChange={(e) =>
+                  setWithdrawalAmount(
+                    e.target.value
+                  )
+                }
+                step="0.01"
+                min="0.01"
+              />
+
+              <label>Chave Pix</label>
+
+              <input
+                type="text"
+                placeholder="Chave Pix"
+                value={pixKey}
+                onChange={(e) =>
+                  setPixKey(e.target.value)
+                }
+              />
+
+              <label>Documento</label>
+
+              <input
+                type="text"
+                placeholder="CPF ou CNPJ"
+                value={withdrawalDocument}
+                onChange={(e) =>
+                  setWithdrawalDocument(
+                    e.target.value
+                  )
+                }
+              />
+
+              <label>Descrição</label>
+
+              <input
+                type="text"
+                placeholder="Saque para conta pessoal"
+                value={withdrawalDescription}
+                onChange={(e) =>
+                  setWithdrawalDescription(
+                    e.target.value
+                  )
+                }
+              />
+
+              <label>
+                Referência externa
+              </label>
+
+              <input
+                type="text"
+                placeholder="SAQUE-001"
+                value={
+                  withdrawalExternalReference
+                }
+                onChange={(e) =>
+                  setWithdrawalExternalReference(
+                    e.target.value
+                  )
+                }
+              />
+
+              {withdrawalError && (
+                <div className="login-error">
+                  {withdrawalError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="login-button"
+                disabled={withdrawalLoading}
+              >
+                {withdrawalLoading
+                  ? 'Solicitando...'
+                  : 'Solicitar saque'}
+              </button>
+            </form>
+
+            {withdrawalResult && (
+              <div className="checkout-result">
+                <h3>
+                  Saque solicitado
+                </h3>
+
+                <p>
+                  Acompanhe o status da
+                  solicitação
+                </p>
+
+                <p>
+                  <strong>Status:</strong>{' '}
+                  {withdrawalResult.status}
+                </p>
+
+                <p>
+                  <strong>Valor:</strong>{' '}
+                  R${' '}
+                  {(
+                    Number(
+                      withdrawalResult.amount
+                    ) / 100
+                  ).toFixed(2)}
+                </p>
+
+                <p>
+                  <strong>
+                    Referência:
+                  </strong>{' '}
+                  {
+                    withdrawalResult.externalReference
+                  }
+                </p>
+
+                <p>
+                  <strong>ID:</strong>{' '}
+                  {withdrawalResult.id}
+                </p>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={
+                    handleWithdrawalStatus
+                  }
+                  disabled={
+                    withdrawalStatusLoading
+                  }
+                >
+                  {withdrawalStatusLoading
+                    ? 'Consultando...'
+                    : 'Consultar status'}
+                </button>
+              </div>
+            )}
+
+            {withdrawalStatusResult && (
+              <div className="checkout-result">
+                <h3>
+                  Status atualizado
+                </h3>
+
+                <p>
+                  <strong>Status:</strong>{' '}
+                  {
+                    withdrawalStatusResult
+                      .withdrawal?.status
+                  }
+                </p>
+
+                {withdrawalStatusResult.gateway && (
+                  <p>
+                    <strong>
+                      Status Gateway:
+                    </strong>{' '}
+                    {
+                      withdrawalStatusResult
+                        .gateway.status
+                    }
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (page === 'webhooks') {
+    return (
+      <div className="app">
+        <Sidebar
+          page={page}
+          setPage={setPage}
+        />
+
+        <main className="main">
+          <header className="header">
+            <div>
+              <h1>Webhooks</h1>
+              <p>
+                Configure os callbacks do Gateway
+              </p>
+            </div>
+          </header>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h2>
+                  Configurar webhooks
+                </h2>
+
+                <p>
+                  Cadastre as URLs que receberão
+                  os eventos do Gateway
+                </p>
+              </div>
+            </div>
+
+            <form
+              className="checkout-form"
+              onSubmit={handleRegisterWebhooks}
+            >
+              <label>
+                URL pública da API BaaS
+              </label>
+
+              <input
+                type="text"
+                placeholder="Ex: http://127.0.0.1:3000"
+                value={webhookUrl}
+                onChange={(e) =>
+                  setWebhookUrl(
+                    e.target.value
+                  )
+                }
+              />
+
+              <label>
+                Secret
+              </label>
+
+              <input
+                type="text"
+                placeholder="Secret opcional"
+                value={webhookSecret}
+                onChange={(e) =>
+                  setWebhookSecret(
+                    e.target.value
+                  )
+                }
+              />
+
+              {webhookError && (
+                <div className="login-error">
+                  {webhookError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="login-button"
+                disabled={webhookLoading}
+              >
+                {webhookLoading
+                  ? 'Cadastrando...'
+                  : 'Cadastrar webhooks'}
+              </button>
+            </form>
+
+            {webhookResult && (
+              <div className="checkout-result">
+                <h3>
+                  Webhooks cadastrados
+                  com sucesso!
+                </h3>
+
+                <p>
+                  Os eventos PAYMENT_PIX,
+                  PAYMENT_CARD e WITHDRAWAL
+                  foram configurados.
+                </p>
+
+                {webhookResult.webhooks?.map(
+                  (webhook: any) => (
+                    <div
+                      key={webhook.event}
+                    >
+                      <p>
+                        <strong>
+                          {webhook.event}
+                        </strong>
+                      </p>
+
+                      <p>
+                        {webhook.url}
+                      </p>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
-      <aside className="sidebar">
-        <nav className="menu">
-          <button
-            className="menu-item active"
-            onClick={() =>
-              setPage('dashboard')
-            }
-          >
-            <span>⌂</span>
-            Dashboard
-          </button>
-
-          <button
-            className={`menu-item ${
-              page === 'checkout'
-                ? 'active'
-                : ''
-            }`}
-            onClick={() =>
-              setPage('checkout')
-            }
-          >
-            <span>↗</span>
-            Checkout
-          </button>
-
-          <button className="menu-item">
-            <span>▣</span>
-            Transações
-          </button>
-
-          <button className={`menu-item ${ page === 'withdrawal' ? 'active' : '' }`} onClick={() => setPage('withdrawal')}>
-            <span>↓</span>
-            Saques
-          </button>
-
-          <button className="menu-item">
-            <span>⚙</span>
-            Webhooks
-          </button>
-        </nav>
-
-        <div className="sidebar-footer">
-          <span className="status-dot"></span>
-          Gateway conectado
-        </div>
-      </aside>
+      <Sidebar
+        page={page}
+        setPage={setPage}
+      />
 
       <main className="main">
         <header className="header">
@@ -1064,7 +1370,12 @@ function Dashboard() {
                 </p>
               </div>
 
-              <button className="secondary-button">
+              <button
+                className="secondary-button"
+                onClick={() =>
+                  setPage('transactions')
+                }
+              >
                 Ver todas
               </button>
             </div>
@@ -1188,6 +1499,95 @@ function Dashboard() {
         </section>
       </main>
     </div>
+  );
+}
+
+function Sidebar({
+  page,
+  setPage,
+}: {
+  page: string;
+  setPage: (page: string) => void;
+}) {
+  return (
+    <aside className="sidebar">
+      <nav className="menu">
+        <button
+          className={`menu-item ${
+            page === 'dashboard'
+              ? 'active'
+              : ''
+          }`}
+          onClick={() =>
+            setPage('dashboard')
+          }
+        >
+          <span>⌂</span>
+          Dashboard
+        </button>
+
+        <button
+          className={`menu-item ${
+            page === 'checkout'
+              ? 'active'
+              : ''
+          }`}
+          onClick={() =>
+            setPage('checkout')
+          }
+        >
+          <span>↗</span>
+          Checkout
+        </button>
+
+        <button
+          className={`menu-item ${
+            page === 'transactions'
+              ? 'active'
+              : ''
+          }`}
+          onClick={() =>
+            setPage('transactions')
+          }
+        >
+          <span>▣</span>
+          Transações
+        </button>
+
+        <button
+          className={`menu-item ${
+            page === 'withdrawal'
+              ? 'active'
+              : ''
+          }`}
+          onClick={() =>
+            setPage('withdrawal')
+          }
+        >
+          <span>↓</span>
+          Saques
+        </button>
+
+        <button
+          className={`menu-item ${
+            page === 'webhooks'
+              ? 'active'
+              : ''
+          }`}
+          onClick={() =>
+            setPage('webhooks')
+          }
+        >
+          <span>⚙</span>
+          Webhooks
+        </button>
+      </nav>
+
+      <div className="sidebar-footer">
+        <span className="status-dot"></span>
+        Gateway conectado
+      </div>
+    </aside>
   );
 }
 
