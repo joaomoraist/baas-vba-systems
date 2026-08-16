@@ -295,6 +295,48 @@ export class GatewayService {
     }
   }
 
+  async getWalletTransactions(
+  gatewayAccount: GatewayAccount,
+  params?: Record<string, string | number>,
+) {
+  try {
+    const response = await firstValueFrom(
+      this.httpService.get(
+        `${this.baseUrl}/wallet/transactions`,
+        {
+          headers: this.getAuthHeaders(gatewayAccount),
+          params,
+        },
+      ),
+    );
+
+    return response.data;
+  } catch (error) {
+    this.handleHttpError(error);
+  }
+}
+
+  async getWallet(
+    gatewayAccount: GatewayAccount,
+  ) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(
+          `${this.baseUrl}/wallet`,
+          {
+            headers: this.getAuthHeaders(
+              gatewayAccount,
+            ),
+          },
+        ),
+      );
+
+      return response.data;
+    } catch (error) {
+      this.handleHttpError(error);
+    }
+  }
+
   private getAuthHeaders(
     gatewayAccount: GatewayAccount,
   ) {

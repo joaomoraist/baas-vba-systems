@@ -9,6 +9,7 @@ import { CheckoutModule } from './checkout/checkout.module';
 import { UsersModule } from './users/users.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { WithdrawalModule } from './withdrawal/withdrawal.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { WithdrawalModule } from './withdrawal/withdrawal.module';
     UsersModule,
     WebhookModule,
     WithdrawalModule,
+    WalletModule,
 
   ],
 
