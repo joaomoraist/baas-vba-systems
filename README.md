@@ -70,7 +70,7 @@ Instale as dependências:
 npm install
 ```
 
-Crie o arquivo `.env` com o seguinte conteúdo:
+Crie o arquivo `.env` com o seguinte conteúdo (Use o .env.example para consulta):
 
 ```env
 PORT=3000
