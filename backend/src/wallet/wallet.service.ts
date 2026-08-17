@@ -1,5 +1,6 @@
 import {
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 
 import { GatewayService } from '../gateway/gateway.service';
@@ -14,6 +15,12 @@ export class WalletService {
   async getWallet(
     gatewayAccountId: string,
   ) {
+    if (!gatewayAccountId) {
+      throw new UnauthorizedException(
+        'Conta do Gateway não informada.',
+      );
+    }
+
     const gatewayAccount =
       await this.gatewayService.getGatewayAccount(
         gatewayAccountId,
@@ -27,29 +34,38 @@ export class WalletService {
   async getTransactions(
     gatewayAccountId: string,
     dto: WalletTransactionsDto,
-    ) {
-    const gatewayAccount =
-        await this.gatewayService.getGatewayAccount(
-        gatewayAccountId,
-        );
+  ) {
+    if (!gatewayAccountId) {
+      throw new UnauthorizedException(
+        'Conta do Gateway não informada.',
+      );
+    }
 
-    const params: Record<string, string | number> = {};
+    const gatewayAccount =
+      await this.gatewayService.getGatewayAccount(
+        gatewayAccountId,
+      );
+
+    const params: Record<
+      string,
+      string | number
+    > = {};
 
     if (dto.status) {
-        params.status = dto.status;
+      params.status = dto.status;
     }
 
     if (dto.type) {
-        params.type = dto.type;
+      params.type = dto.type;
     }
 
     if (dto.limit) {
-        params.limit = dto.limit;
+      params.limit = dto.limit;
     }
 
     return this.gatewayService.getWalletTransactions(
-        gatewayAccount,
-        params,
+      gatewayAccount,
+      params,
     );
-    }
+  }
 }

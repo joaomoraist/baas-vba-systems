@@ -2,7 +2,7 @@ import {
   Controller,
   Get,
   Query,
-  Param
+  Param,
 } from '@nestjs/common';
 
 import { ApiOperation } from '@nestjs/swagger';
@@ -28,18 +28,19 @@ export class WalletController {
       gatewayAccountId,
     );
   }
-  
-    @Get('transactions/:gatewayAccountId')
-    @ApiOperation({
+
+  @Get('transactions/:gatewayAccountId')
+  @ApiOperation({
     summary: 'Consulta o extrato da carteira',
-    })
-    async getTransactions(
-    @Param('gatewayAccountId') gatewayAccountId: string,
+  })
+  async getTransactions(
+    @Param('gatewayAccountId')
+    gatewayAccountId: string,
     @Query() dto: WalletTransactionsDto,
-    ) {
+  ) {
     return this.walletService.getTransactions(
-        gatewayAccountId,
-        dto,
+      gatewayAccountId,
+      dto,
     );
-    }
+  }
 }

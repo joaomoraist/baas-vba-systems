@@ -184,6 +184,9 @@ export class CheckoutService {
       expiresAt:
         savedCheckoutLink.expiresAt,
 
+      feePercent: 
+        savedCheckoutLink.feePercent,  
+
       gatewayPaymentId:
         savedCheckoutLink.gatewayPaymentId,
 

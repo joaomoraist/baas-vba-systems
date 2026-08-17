@@ -3,14 +3,28 @@ import './App.css';
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(
-    !!localStorage.getItem('gatewayAccountId')
+    localStorage.getItem('baasLoggedIn') === 'true'
   );
 
   if (!loggedIn) {
-    return <Login onLogin={() => setLoggedIn(true)} />;
+    return (
+      <Login
+        onLogin={() => {
+          setLoggedIn(true);
+        }}
+      />
+    );
   }
 
-  return <Dashboard />;
+  return (
+    <Dashboard
+      onLogout={() => {
+        localStorage.removeItem('gatewayAccountId');
+        localStorage.removeItem('baasLoggedIn');
+        setLoggedIn(false);
+      }}
+    />
+  );
 }
 
 function Login({ onLogin }: { onLogin: () => void }) {
@@ -49,11 +63,17 @@ function Login({ onLogin }: { onLogin: () => void }) {
       }
 
       localStorage.setItem(
-        'gatewayAccountId',
-        data.gatewayAccountId
-      );
+      'gatewayAccountId',
+      data.gatewayAccountId
+    );
 
-      onLogin();
+    localStorage.setItem(
+      'baasLoggedIn',
+      'true'
+    );
+
+    onLogin();
+
     } catch (error) {
       setError(
         error instanceof Error
@@ -113,7 +133,11 @@ function Login({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-function Dashboard() {
+function Dashboard({
+  onLogout,
+}: {
+  onLogout: () => void;
+}) {
   const gatewayAccountId =
     localStorage.getItem('gatewayAccountId');
 
@@ -222,7 +246,6 @@ function Dashboard() {
             : '');
 
         const response = await fetch(url);
-
         const data = await response.json();
 
         if (!response.ok) {
@@ -414,7 +437,6 @@ function Dashboard() {
         `${withdrawalResult.id}`;
 
       const response = await fetch(url);
-
       const data = await response.json();
 
       if (!response.ok) {
@@ -495,13 +517,18 @@ function Dashboard() {
     }
   }
 
+  const sidebar = (
+    <Sidebar
+      page={page}
+      setPage={setPage}
+      onLogout={onLogout}
+    />
+  );
+
   if (page === 'checkout') {
     return (
       <div className="app">
-        <Sidebar
-          page={page}
-          setPage={setPage}
-        />
+        {sidebar}
 
         <main className="main">
           <header className="header">
@@ -794,10 +821,7 @@ function Dashboard() {
   if (page === 'transactions') {
     return (
       <div className="app">
-        <Sidebar
-          page={page}
-          setPage={setPage}
-        />
+        {sidebar}
 
         <main className="main">
           <header className="header">
@@ -946,10 +970,7 @@ function Dashboard() {
   if (page === 'withdrawal') {
     return (
       <div className="app">
-        <Sidebar
-          page={page}
-          setPage={setPage}
-        />
+        {sidebar}
 
         <main className="main">
           <header className="header">
@@ -1155,10 +1176,7 @@ function Dashboard() {
   if (page === 'webhooks') {
     return (
       <div className="app">
-        <Sidebar
-          page={page}
-          setPage={setPage}
-        />
+        {sidebar}
 
         <main className="main">
           <header className="header">
@@ -1275,10 +1293,7 @@ function Dashboard() {
 
   return (
     <div className="app">
-      <Sidebar
-        page={page}
-        setPage={setPage}
-      />
+      {sidebar}
 
       <main className="main">
         <header className="header">
@@ -1505,9 +1520,11 @@ function Dashboard() {
 function Sidebar({
   page,
   setPage,
+  onLogout,
 }: {
   page: string;
   setPage: (page: string) => void;
+  onLogout: () => void;
 }) {
   return (
     <aside className="sidebar">
@@ -1580,6 +1597,14 @@ function Sidebar({
         >
           <span>⚙</span>
           Webhooks
+        </button>
+
+        <button
+          className="menu-item"
+          onClick={onLogout}
+        >
+          <span>↪</span>
+          Sair
         </button>
       </nav>
 
